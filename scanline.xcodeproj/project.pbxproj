@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0DFF4279257E9675002E029A /* ScannerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFF4278257E9675002E029A /* ScannerController.swift */; };
 		FCD75D391FF2E1D50041D955 /* ScanConfigurationTests.m in Sources */ = {isa = PBXBuildFile; fileRef = FCD75D381FF2E1D50041D955 /* ScanConfigurationTests.m */; };
 		FCD75D451FF2E9300041D955 /* config_test.conf in Resources */ = {isa = PBXBuildFile; fileRef = FCD75D441FF2E9300041D955 /* config_test.conf */; };
 		FCD75D6A1FF2ED220041D955 /* ScanConfiguration.m in Sources */ = {isa = PBXBuildFile; fileRef = FCF90C461FD3536700EAF3D1 /* ScanConfiguration.m */; };
@@ -44,6 +45,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0DFF4278257E9675002E029A /* ScannerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerController.swift; sourceTree = "<group>"; };
 		FCD75D361FF2E1D50041D955 /* Scanline Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Scanline Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCD75D381FF2E1D50041D955 /* ScanConfigurationTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ScanConfigurationTests.m; sourceTree = "<group>"; };
 		FCD75D3A1FF2E1D50041D955 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				FCF90C451FD3536700EAF3D1 /* scanline-Bridging-Header.h */,
 				FCF90C4B1FD3543D00EAF3D1 /* Logger.swift */,
 				FCF90C4F1FD39E3300EAF3D1 /* ScannerBrowser.swift */,
+				0DFF4278257E9675002E029A /* ScannerController.swift */,
 			);
 			path = scanline;
 			sourceTree = "<group>";
@@ -228,6 +231,7 @@
 				FCF90C481FD3536700EAF3D1 /* ScanConfiguration.m in Sources */,
 				FCF90C501FD39E3300EAF3D1 /* ScannerBrowser.swift in Sources */,
 				FCF90C4A1FD3537400EAF3D1 /* ScanlineAppController.swift in Sources */,
+				0DFF4279257E9675002E029A /* ScannerController.swift in Sources */,
 				FCF90C4C1FD3543D00EAF3D1 /* Logger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
