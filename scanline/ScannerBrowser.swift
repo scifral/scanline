@@ -62,7 +62,7 @@ class ScannerBrowser: NSObject, ICDeviceBrowserDelegate {
         
         // "Fuzzy" match -- case-free compare of prefix
         if configuration.config[ScanlineConfigOptionExactName] == nil &&
-            deviceName.lowercased().starts(with: desiredName.lowercased()) {
+        deviceName.lowercased().contains(desiredName.lowercased()) {
             return true
         }
         

@@ -9,6 +9,7 @@ import Foundation
 import ImageCaptureCore
 import AppKit
 import Quartz
+import Vision  // for barcode -spf
 
 class ScanlineAppController: NSObject, ScannerBrowserDelegate, ScannerControllerDelegate {
     let configuration: ScanConfiguration
@@ -100,6 +101,7 @@ extension Int {
         return String(format: "%ld", self)
     }
 }
+
 class ScanlineOutputProcessor {
     let logger: Logger
     let configuration: ScanConfiguration
@@ -130,19 +132,124 @@ class ScanlineOutputProcessor {
         return true
     }
     
+    // add -spf cf. https://heartbeat.fritz.ai/building-a-barcode-scanner-in-swift-on-ios-9ad550e8f78b
+    func detectHandler(request: VNRequest, error: Error?) {
+        guard let observations = request.results else {
+            //print("no result")
+            return
+        }
+        self.logger.log ("barcode obs : \(observations.count)")
+        let results = observations.map({$0 as? VNBarcodeObservation})
+        for result in results {
+            self.logger.log(result!.payloadStringValue!)
+        }
+    }
+    
+    /*func startDetection() {
+       let request = VNDetectBarcodesRequest(completionHandler: self.detectHandler)
+       request.symbologies = [VNBarcodeSymbology.code39] // or use .QR, etc
+       self.requests = [request]
+    }*/
+    
+    lazy var detectBarcodeRequest: VNDetectBarcodesRequest = {
+        return VNDetectBarcodesRequest(completionHandler: { (request, error) in
+            guard error == nil else {
+                self.logger.log("Barcode Error \(error!.localizedDescription)")
+                return
+            }
+
+            self.processClassification(for: request)
+        })
+    }()
+    
+    // MARK: - Vision
+    func processClassification(for request: VNRequest) {
+        //DispatchQueue.main.async {
+            if let bestResult = request.results?.first as? VNBarcodeObservation,
+                let payload = bestResult.payloadStringValue {
+                self.logger.log (payload)
+                //self.showInfo(for: payload)
+            } else {
+                self.logger.log("Unable to extract results: cannot extract barcode information from data.")
+            }
+        //}
+    }
+    
     func combine(urls: [URL]) -> URL? {
         let document = PDFDocument()
         
+        
         for url in urls {
-            if let page = PDFPage(image: NSImage(byReferencing: url)) {
+           
+            //let ciImage = CIImage(contentsOf: url)
+            let image = NSImage(byReferencing: url)
+            let cgImage = image.cgImage! // extension method in UIImageAlias...
+            //let imageData = image.tiffRepresentation!
+            //let ciImage = CIImage(data: imageData.cop)
+            //let src = CGImageSourceCreateWithURL(url as CFURL, nil)
+            //let cgImage = CGImageSourceCreateImageAtIndex(src!, 0, nil)
+            
+            //let fname = url.description
+            //let dataProvider = CGDataProvider(filename: fname)
+            //let cgImage = CGImage(jpegDataProviderSource: dataProvider!, decode: nil, shouldInterpolate: false, intent: CGColorRenderingIntent(rawValue: 0)!)
+            let textRequest = VNRecognizeTextRequest { request, error in
+                guard let observations = request.results as? [VNRecognizedTextObservation] else {
+                    fatalError("Received invalid observations")
+                }
+
+                for observation in observations {
+                    guard let bestCandidate = observation.topCandidates(1).first else {
+                        print("No candidate")
+                        continue
+                    }
+
+                    print("Found this candidate: \(bestCandidate.string)")
+                }
+            }
+            textRequest.recognitionLevel = .accurate
+            
+            let ocrHandler = VNImageRequestHandler(cgImage: cgImage, orientation: CGImagePropertyOrientation.up, options: [:])
+            do {
+                try ocrHandler.perform([textRequest])
+            } catch {
+                self.logger.log("Error Decoding OCR \(error.localizedDescription)")
+            }
+            
+            let request = VNDetectBarcodesRequest(completionHandler: self.detectHandler)
+            
+            request.symbologies = [VNBarcodeSymbology.code39] // or use .QR, etc
+            let handler = VNImageRequestHandler(cgImage: cgImage, orientation: CGImagePropertyOrientation.up, options: [:])
+           
+            do {
+                try handler.perform([request])
+            } catch {
+                self.logger.log("Error Decoding Barcode \(error.localizedDescription)")
+            }
+            /*// Perform the classification request on a background thread.
+            DispatchQueue.global(qos: .userInitiated).async {
+                //let handler = VNImageRequestHandler(ciImage: ciImage!, orientation: CGImagePropertyOrientation.up, options: [:])
+                let handler = VNImageRequestHandler(cgImage: cgImage, orientation: CGImagePropertyOrientation.up, options: [:])
+                do {
+                    try handler.perform([self.detectBarcodeRequest])
+                } catch {
+                    self.logger.log("Error Decoding Barcode \(error.localizedDescription)")
+                }
+            }*/
+            //let image = NSImage(byReferencing: url)
+            if let page = PDFPage(image: image) {
                 document.insert(page, at: document.pageCount)
             }
         }
+        
+        /*let group = DispatchGroup()
+        group.enter()
+        group.wait()*/
         
         let tempFilePath = "\(NSTemporaryDirectory())/scan.pdf"
         document.write(toFile: tempFilePath)
         
         return URL(fileURLWithPath: tempFilePath)
+        
     }
 
     func outputAndTag(url: URL) {

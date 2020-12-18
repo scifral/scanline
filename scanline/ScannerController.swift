@@ -8,6 +8,7 @@
 
 import Foundation
 import ImageCaptureCore
+import CoreGraphics
 
 protocol ScannerControllerDelegate: class {
     func scannerControllerDidFail(_ scannerController: ScannerController)
@@ -55,8 +56,25 @@ class ScannerController: NSObject, ICScannerDeviceDelegate {
     func scannerDevice(_ scanner: ICScannerDevice, didScanTo data: ICScannerBandData) {
         
         let buffer = data.dataBuffer
+        let dsr = data.dataStartRow  // this is critical value: value is 0 on start of new page
+        let isNewPage = dsr == 0
+        let dnr = data.dataNumRows  // this is number of rows in the buffer e.g. 102 until final band for page = 18
+        let ds = data.dataSize      // ds and cnt are idential values
+        //let fiw = data.fullImageWidth // 1275
+        //let fih = data.fullImageHeight // 1650; fixed
         let cnt = buffer?.count
-        logger.verbose("didScanTo received \(cnt ?? 0) bytes")
+        
+        // https://stackoverflow.com/questions/22859289/how-to-create-an-image-from-data-received-from-scanner
+        let color = CGColorSpaceCreateDeviceGray();
+        //   if ([data pixelDataType] == ICScannerPixelDataTypeRGB) color = CGColorSpaceCreateDeviceRGB();
+        let nsData = NSData(data: buffer!)
+   
+        let image = CGImage(width: data.fullImageWidth, height: data.fullImageHeight, bitsPerComponent: data.bitsPerComponent, bitsPerPixel: data.bitsPerPixel, bytesPerRow: data.bytesPerRow, space: color, bitmapInfo: CGBitmapInfo(rawValue: 0), provider: CGDataProvider(data: CFDataCreate(nil, nsData.bytes.assumingMemoryBound(to: UInt8.self), data.dataSize)!)!, decode: nil, shouldInterpolate: false, intent: CGColorRenderingIntent(rawValue: 0)!)
+        let size = NSMakeSize(CGFloat(data.fullImageWidth), CGFloat(data.fullImageHeight))
+        let finImage = NSImage(cgImage: image!, size: size)
+        //NSImage *finImage = [[NSImage alloc] initWithCGImage:image size:NSMakeSize([data fullImageWidth], [data fullImageHeight])];
+        logger.verbose("didScanTo received \(cnt ?? 0) bytes; dsr \(dsr) dnr \(dnr) dsz \(ds)   ")
+         
     }
     
     func device(_ device: ICDevice, didEncounterError error: Error?) {
@@ -141,18 +159,18 @@ class ScannerController: NSObject, ICScannerDeviceDelegate {
         logger.verbose("Configuring scanner")
         
         let functionalUnit = scanner.selectedFunctionalUnit
-        
+      
         if functionalUnit.type == .documentFeeder {
             configureDocumentFeeder()
         } else {
             configureFlatbed()
         }
         
-        let desiredResolution = Int(configuration.config[ScanlineConfigOptionResolution] as? String ?? "150") ?? 150
+        let desiredResolution =  Int(configuration.config[ScanlineConfigOptionResolution] as? String ?? "200") ?? 200
         if let resolutionIndex = functionalUnit.supportedResolutions.integerGreaterThanOrEqualTo(desiredResolution) {
             functionalUnit.resolution = resolutionIndex
         }
-
+        
         if configuration.config[ScanlineConfigOptionMono] != nil {
             functionalUnit.pixelDataType = .BW
             functionalUnit.bitDepth = .depth1Bit
@@ -160,13 +178,16 @@ class ScannerController: NSObject, ICScannerDeviceDelegate {
             functionalUnit.pixelDataType = .RGB
             functionalUnit.bitDepth = .depth8Bits
         }
-
-        //scanner.transferMode = .fileBased
-        scanner.transferMode = .memoryBased  // change -spf
-        //scanner.downloadsDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
+       
+        scanner.transferMode = .fileBased
+        //scanner.transferMode = .memoryBased  // change -spf
+        let mbs = scanner.maxMemoryBandSize
+      
+      
+        scanner.downloadsDirectory = URL(fileURLWithPath: NSTemporaryDirectory())
         scanner.documentName = "Scan"
         
-        if configuration.config[ScanlineConfigOptionTIFF] != nil {
+        if (true) { //configuration.config[ScanlineConfigOptionTIFF] != nil {
             scanner.documentUTI = kUTTypeTIFF as String
         } else {
             scanner.documentUTI = kUTTypeJPEG as String
@@ -187,6 +208,7 @@ class ScannerController: NSObject, ICScannerDeviceDelegate {
             }
             return .typeUSLetter
         }()
+      
         
         functionalUnit.duplexScanningEnabled = (configuration.config[ScanlineConfigOptionDuplex] != nil)
     }
